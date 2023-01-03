@@ -13,9 +13,11 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from ujson import loads as load_json
+from rest_framework import viewsets
+
 
 from backend.signals import new_user_registered, new_order
-from serializers import UserSerializer, OrderSerializer, CategorySerializer, ShopSerializer, \
+from backend.serializers import UserSerializer, OrderSerializer, CategorySerializer, ShopSerializer, \
     ProductInfoSerializer, OrderItemSerializer, ContactSerializer
 from backend.models import Order, OrderItem, Product, ConfirmEmailToken, Category, Shop, \
     ProductInfo, User, Parameter, ProductParameter, Contact

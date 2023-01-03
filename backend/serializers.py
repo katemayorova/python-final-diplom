@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User, Shop, Category, Product, ProductInfo,  ProductParameter, Order, OrderItem,  Contact
+from backend.models import User, Shop, Category, Product, ProductInfo,  ProductParameter, Order, OrderItem,  Contact
 
 
 class ContactSerializer(serializers.ModelSerializer):
@@ -50,7 +50,6 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ('name', 'category', )
-
 
 
 class ProductInfoSerializer(serializers.ModelSerializer):
