@@ -2,8 +2,10 @@ import secrets
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.db import models
-
+from django_rest_passwordreset.tokens import get_token_generator
+from pkg_resources import _
 
 STATE_CHOICES = (
     ('basket', 'Статус корзины'),
@@ -59,16 +61,39 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     company = models.CharField(verbose_name='Компания', max_length=40, blank=True)
     position = models.CharField(verbose_name='Должность', max_length=40, blank=True)
-    username = None
-    is_active = models.BooleanField(default=False)
-    type = models.CharField(verbose_name='Тип пользователя', choices=USER_TYPE_CHOICES, max_length=5, default='buyer')
+    username_validator = UnicodeUsernameValidator()
+    username = models.CharField(
+        _('username'),
+        max_length=40,
+        blank=True,
+        null=True,
+        help_text=_('Name and last name. Letters, digits and @/./+/-/_ only.'),
+        validators=[username_validator],
+        error_messages={
+            'unique': _("A user with that username already exists."),
+        },
+    )
+    is_active = models.BooleanField(
+        _('active'),
+        default=False,
+        help_text=_(
+            'Designates whether this user should be treated as active. '
+            'Unselect this instead of deleting accounts.'
+        ),
+    )
+    type = models.CharField(
+        verbose_name=_('Тип пользователя'),
+        choices=USER_TYPE_CHOICES,
+        max_length=5,
+        default='buyer'
+    )
 
     def __str__(self):
-        return f'{self.first_name} {self.last_name}'
+        return f'{self.email}'
 
     class Meta:
-        verbose_name = 'Пользователь'
-        verbose_name_plural = "Список пользователей"
+        verbose_name = _('Пользователь')
+        verbose_name_plural = _("Список пользователей")
         ordering = ('email',)
 
 
@@ -224,16 +249,40 @@ class OrderItem(models.Model):
 
 
 class ConfirmEmailToken(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    token = models.CharField(max_length=64, db_index=True, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        verbose_name = 'Токен подтверждения Email'
+        verbose_name_plural = 'Токены подтверждения Email'
 
     @staticmethod
-    def generate_token():
-        return secrets.token_hex()
+    def generate_key():
+        """ generates a pseudo random code using os.urandom and binascii.hexlify """
+        return get_token_generator().generate_token()
+
+    user = models.ForeignKey(
+        User,
+        related_name='confirm_email_tokens',
+        on_delete=models.CASCADE,
+        verbose_name=_("The User which is associated to this password reset token")
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("When was this token generated")
+    )
+
+    # Key field, though it is not the primary key of the model
+    key = models.CharField(
+        _("Key"),
+        max_length=64,
+        db_index=True,
+        unique=True
+    )
 
     def save(self, *args, **kwargs):
-        if not self.token:
-            self.token = self.generate_token()
+        if not self.key:
+            self.key = self.generate_key()
         return super(ConfirmEmailToken, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return "Password reset token for user {user}".format(user=self.user)
 

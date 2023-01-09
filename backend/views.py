@@ -1,33 +1,32 @@
 from distutils.util import strtobool
 from sqlite3 import IntegrityError
 from webbrowser import get
-from yaml import load as load_yaml, Loader
-from django.core.exceptions import ValidationError
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db.models import Q, F, Sum
 from django.http import JsonResponse
-from django.shortcuts import render
-from rest_framework.generics import ListAPIView
+from rest_framework import viewsets
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from ujson import loads as load_json
-from rest_framework import viewsets
+from yaml import load as load_yaml, Loader
 
-
-from backend.signals import new_user_registered, new_order
+from backend.models import Order, OrderItem, Product, ConfirmEmailToken, Category, Shop, \
+    ProductInfo, Parameter, ProductParameter, Contact
 from backend.serializers import UserSerializer, OrderSerializer, CategorySerializer, ShopSerializer, \
     ProductInfoSerializer, OrderItemSerializer, ContactSerializer
-from backend.models import Order, OrderItem, Product, ConfirmEmailToken, Category, Shop, \
-    ProductInfo, User, Parameter, ProductParameter, Contact
-from rest_framework.authtoken.models import Token
+from backend.signals import new_user_registered, new_order
 
 
 class RegisterAccount(APIView):  # регистрация покупателей методом post
 
     def post(self, request, *args, **kwargs):
-        if {'email', 'password'}.issubset(request.data):
+        if {'first_name', 'last_name', 'email', 'password', 'company', 'position'}.issubset(request.data):
+
             try:
                 validate_password(request.data['password'])
             except Exception as password_error:
@@ -48,7 +47,7 @@ class RegisterAccount(APIView):  # регистрация покупателей
                     return JsonResponse({'Status': False, 'Errors': user_serializer.errors})
 
 
-class ConfirmEmail():  # подтверждение почтового адреса
+class ConfirmEmail(APIView):  # подтверждение почтового адреса
 
     def post(self, request, *args, **kwargs):
 
@@ -85,6 +84,7 @@ class AccountDetails(APIView):  # для работы с данными поль
 
         if 'password' in request.data:
             errors = {}
+
             # проверяем пароль на сложность
             try:
                 validate_password(request.data['password'])
@@ -123,7 +123,6 @@ class ContactView(APIView):  # для работы с контактами
             return JsonResponse({'Status': False, 'Error': 'Требуется войти'}, status=403)
 
         if {'city', 'street', 'phone'}.issubset(request.data):
-            request.data._mutable = True
             request.data.update({'user': request.user.id})
             serializer = ContactSerializer(data=request.data)
 
@@ -175,12 +174,12 @@ class ContactView(APIView):  # для работы с контактами
         return JsonResponse({'Status': False, 'Errors': 'Указаны не все необходимые параметры'})
 
 
-class LoginAccount(APIView):  # для авторизации ползователей
+class LoginAccount(APIView):  # для авторизации пользователей
     # Авторизация методом POST
     def post(self, request, *args, **kwargs):
 
         if {'email', 'password'}.issubset(request.data):
-            user = User.objects.filter(email=request.data['email'], password=request.data['password']).first()
+            user = authenticate(request, username=request.data['email'], password=request.data['password'])
 
             if user is not None:
                 if user.is_active:
@@ -193,13 +192,13 @@ class LoginAccount(APIView):  # для авторизации ползовате
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые параметры'})
 
 
-class CategoryView(ListAPIView):   # класс для просмотра категорий
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # класс для просмотра категорий
 
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
 
-class ShopView(ListAPIView):   # класс для просмотра списка магазинов
+class ShopViewSet(viewsets.ReadOnlyModelViewSet):  # класс для просмотра списка магазинов
 
     queryset = Shop.objects.filter(state=True)
     serializer_class = ShopSerializer
@@ -378,7 +377,7 @@ class OrderView(APIView):  # для получения и размещения �
 
 
 class PartnerUpdate(APIView):  # для обновления прайса от поставщика
-    throttle_scope = 'uploads'
+    # throttle_scope = 'uploads'
 
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:

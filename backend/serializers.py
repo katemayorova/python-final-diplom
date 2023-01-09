@@ -6,7 +6,7 @@ from backend.models import User, Shop, Category, Product, ProductInfo,  ProductP
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ('user', 'city', 'street', 'phone' )
+        fields = ('user', 'city', 'street', 'phone')
         read_only_fields = ('id',)
         extra_kwargs = {
             'user': {'write_only': True}
@@ -18,7 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'first_name', 'company', 'last_name', 'position', 'type', 'email',)
+        fields = ('id', 'last_name', 'username', 'email', 'contacts')
         read_only_fields = ('id',)
 
 
