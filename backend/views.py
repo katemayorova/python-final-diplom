@@ -377,7 +377,7 @@ class OrderView(APIView):  # для получения и размещения �
 
 
 class PartnerUpdate(APIView):  # для обновления прайса от поставщика
-    # throttle_scope = 'uploads'
+    throttle_scope = 'uploads'
 
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
